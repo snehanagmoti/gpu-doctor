@@ -8,11 +8,22 @@ that need them, and anyone can see the full list in one place.
 from __future__ import annotations
 
 from ..runner import Check
-from . import gpu_present, system_info
+from . import (
+    driver_package,
+    gpu_present,
+    kernel_headers,
+    kernel_module,
+    module_build,
+    system_info,
+)
 
 ALL_CHECKS: tuple[Check, ...] = (
     system_info.CHECK,
     gpu_present.CHECK,
+    driver_package.CHECK,
+    kernel_module.CHECK,
+    module_build.CHECK,
+    kernel_headers.CHECK,
 )
 
 __all__ = ["ALL_CHECKS"]
