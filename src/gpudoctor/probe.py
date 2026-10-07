@@ -18,6 +18,15 @@ Error contract
   unavailable, so this happens a lot.)
 * ``PermissionError`` is *not* swallowed. It propagates to the runner, which
   turns it into a SKIP result that tells the user to retry with ``sudo``.
+  Inside a snap it is raised as ``ConfinementError`` instead, because sudo
+  does not lift snap confinement.
+
+Snaps
+-----
+Inside a strictly confined snap, ``/`` is the base snap with some host
+directories bind-mounted on top. ``SystemProbe.path()`` sends reads of
+everything else to the host's real files under /var/lib/snapd/hostfs, so the
+checks never accidentally inspect the base snap's own dpkg database.
 """
 
 from __future__ import annotations
@@ -44,13 +53,53 @@ class CommandResult:
     stderr: str
 
 
+class ConfinementError(PermissionError):
+    """A file the snap's strict confinement does not let us read.
+
+    A subclass of PermissionError so code that does not care treats it the
+    same way, while the runner can explain it properly instead of telling the
+    user to use sudo (which would not help inside a snap).
+    """
+
+
+# Inside a strictly confined snap the mount namespace is built from the base
+# snap (core24), with only some directories bind-mounted from the host (see
+# snapd's cmd/snap-confine/mount-support.c). These are the ones we read that
+# come from the host; everything else (/var/lib/dpkg, /var/lib/dkms,
+# /usr/local, /usr/lib/<triplet>) is the *base snap's* copy in the namespace,
+# and the host's copy is only reachable under /var/lib/snapd/hostfs.
+SNAP_SHARED_PREFIXES = (
+    "/proc/",
+    "/sys/",
+    "/dev/",
+    "/run/",
+    "/etc/",
+    "/lib/modules/",
+    "/usr/lib/modules/",
+    "/usr/src/",
+    "/var/log/",
+    "/var/lib/snapd/",
+    "/snap/",
+)
+# /etc comes from the host, but os-release is a symlink into /usr/lib, which
+# would resolve inside the base snap ("Ubuntu Core 24"). Read it via hostfs.
+SNAP_HOSTFS_EXCEPTIONS = ("/etc/os-release",)
+SNAP_HOSTFS = "/var/lib/snapd/hostfs"
+
+
 class SystemProbe(abc.ABC):
     """Read-only view of a Linux system. Paths are always absolute ("/proc/...")."""
 
-    def __init__(self, root: str | os.PathLike[str] = "/") -> None:
+    def __init__(self, root: str | os.PathLike[str] = "/", host_prefix: str | None = None) -> None:
         self.root = Path(root)
         # False when commands must not run (HostProbe inspecting a --root image).
         self.commands_enabled = True
+        # Set inside a snap: where the host's real root is visible.
+        self.host_prefix = host_prefix
+
+    @property
+    def confined(self) -> bool:
+        return self.host_prefix is not None
 
     # -- filesystem -------------------------------------------------------
 
@@ -58,12 +107,27 @@ class SystemProbe(abc.ABC):
         """Map an absolute system path onto this probe's root directory."""
         if not path.startswith("/"):
             raise ValueError(f"probe paths must be absolute, got {path!r}")
+        if self.host_prefix and (
+            path in SNAP_HOSTFS_EXCEPTIONS or not (path + "/").startswith(SNAP_SHARED_PREFIXES)
+        ):
+            path = self.host_prefix + path
         return self.root / path.lstrip("/")
+
+    def _denied(self, path: str) -> bool:
+        """Hook for test doubles to simulate unreadable files."""
+        return False
+
+    def _permission_error(self, path: str, exc: OSError | None = None) -> PermissionError:
+        if self.confined:
+            return ConfinementError(13, "Not allowed by snap confinement", path)
+        return PermissionError(13, "Permission denied", path)
 
     def read_bytes(self, path: str) -> bytes | None:
         # Read in modest chunks. A single read(64 MiB) fails with ENOMEM on
         # /proc/sys files, because the sysctl handler tries to allocate a
         # kernel buffer as large as the requested read size.
+        if self._denied(path):
+            raise self._permission_error(path)
         chunks: list[bytes] = []
         total = 0
         try:
@@ -76,6 +140,8 @@ class SystemProbe(abc.ABC):
                     total += len(chunk)
         except (FileNotFoundError, NotADirectoryError, IsADirectoryError):
             return None
+        except PermissionError as exc:
+            raise self._permission_error(path, exc) from exc
         return b"".join(chunks)
 
     def read_text(self, path: str) -> str | None:
@@ -90,8 +156,8 @@ class SystemProbe(abc.ABC):
 
         Real systems use absolute links (``/lib/modules/<k>/build`` points to
         ``/usr/src/linux-headers-<k>``). When the probe is rooted somewhere
-        other than ``/`` (tests, ``--root``), resolving such a link naively
-        would look at *this* machine's ``/usr/src``. Only the last path
+        other than ``/`` (tests, ``--root``, a snap's hostfs), resolving such a
+        link naively would look at the wrong ``/usr/src``. Only the last path
         component is followed, which is all the checks need.
         """
         resolved = self.path(path)
@@ -99,10 +165,7 @@ class SystemProbe(abc.ABC):
             if not resolved.is_symlink():
                 break
             target = os.readlink(resolved)
-            if target.startswith("/"):
-                resolved = self.root / target.lstrip("/")
-            else:
-                resolved = resolved.parent / target
+            resolved = self.path(target) if target.startswith("/") else resolved.parent / target
         return resolved
 
     def exists(self, path: str) -> bool:
@@ -114,17 +177,38 @@ class SystemProbe(abc.ABC):
 
     def list_dir(self, path: str) -> list[str]:
         """Sorted entry names in ``path``; ``[]`` if it is missing or not a dir."""
+        if self._denied(path):
+            raise self._permission_error(path)
         try:
             return sorted(os.listdir(self.path(path)))
         except (FileNotFoundError, NotADirectoryError):
             return []
+        except PermissionError as exc:
+            raise self._permission_error(path, exc) from exc
 
     def glob(self, pattern: str) -> list[str]:
-        """Absolute system paths matching ``pattern`` (sorted), e.g. ``/etc/modprobe.d/*.conf``."""
+        """Absolute system paths matching ``pattern`` (sorted), e.g. ``/etc/modprobe.d/*.conf``.
+
+        ``Path.glob`` silently skips directories it cannot read, which would
+        turn "not allowed to look" into "nothing there". So the fixed part of
+        the pattern is listed first, letting a PermissionError surface.
+        """
         if not pattern.startswith("/"):
             raise ValueError(f"glob patterns must be absolute, got {pattern!r}")
-        matches = self.root.glob(pattern.lstrip("/"))
-        return sorted("/" + str(m.relative_to(self.root)) for m in matches)
+        parts = pattern.strip("/").split("/")
+        fixed = []
+        for part in parts:
+            if any(ch in part for ch in "*?["):
+                break
+            fixed.append(part)
+        base = "/" + "/".join(fixed)
+        rest = "/".join(parts[len(fixed) :])
+        if not rest:
+            return [base] if self.exists(base) else []
+        self.list_dir(base)  # raises PermissionError if the directory is unreadable
+        mapped = self.path(base)
+        prefix = base.rstrip("/")
+        return sorted(f"{prefix}/{m.relative_to(mapped)}" for m in mapped.glob(rest))
 
     # -- environment ------------------------------------------------------
 
@@ -162,7 +246,9 @@ class HostProbe(SystemProbe):
     """
 
     def __init__(self, root: str | os.PathLike[str] = "/") -> None:
-        super().__init__(root)
+        in_snap = bool(os.environ.get("SNAP")) and Path(root) == Path("/")
+        hostfs = SNAP_HOSTFS if in_snap and os.path.isdir(SNAP_HOSTFS) else None
+        super().__init__(root, host_prefix=hostfs)
         self.commands_enabled = self.root == Path("/")
 
     def getenv(self, name: str) -> str | None:
@@ -220,8 +306,9 @@ class FakeProbe(SystemProbe):
         env: Mapping[str, str] | None = None,
         machine: str = "x86_64",
         deny: Iterable[str] = (),
+        host_prefix: str | None = None,
     ) -> None:
-        super().__init__(root)
+        super().__init__(root, host_prefix=host_prefix)
         self.commands = dict(commands or {})
         self.env = dict(env or {})
         self._machine = machine
@@ -230,17 +317,8 @@ class FakeProbe(SystemProbe):
         self.deny = frozenset(deny)
         self.calls: list[tuple[str, ...]] = []  # spy: commands that were run
 
-    def _check_denied(self, path: str) -> None:
-        if path in self.deny:
-            raise PermissionError(13, "Permission denied", path)
-
-    def read_bytes(self, path: str) -> bytes | None:
-        self._check_denied(path)
-        return super().read_bytes(path)
-
-    def list_dir(self, path: str) -> list[str]:
-        self._check_denied(path)
-        return super().list_dir(path)
+    def _denied(self, path: str) -> bool:
+        return path in self.deny
 
     def getenv(self, name: str) -> str | None:
         return self.env.get(name)

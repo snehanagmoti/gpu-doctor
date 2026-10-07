@@ -117,3 +117,39 @@ def test_fake_probe_can_simulate_permission_denied(root):
         probe.read_text("/proc/modules")
     with pytest.raises(PermissionError):
         probe.list_dir("/etc/modprobe.d")
+
+
+def test_snap_paths_go_through_hostfs(tmp_path):
+    from gpudoctor.probe import ConfinementError
+
+    probe = FakeProbe(tmp_path, host_prefix="/var/lib/snapd/hostfs", deny={"/var/lib/dpkg/status"})
+    assert probe.confined
+    hostfs = tmp_path / "var/lib/snapd/hostfs"
+    # Shared with the host: read directly.
+    assert probe.path("/proc/modules") == tmp_path / "proc/modules"
+    assert probe.path("/etc/modprobe.d/x.conf") == tmp_path / "etc/modprobe.d/x.conf"
+    # The base snap's copies would be wrong: read the host's via hostfs.
+    assert probe.path("/var/lib/dpkg/status") == hostfs / "var/lib/dpkg/status"
+    assert probe.path("/usr/local/cuda") == hostfs / "usr/local/cuda"
+    assert probe.path("/etc/os-release") == hostfs / "etc/os-release"
+    with pytest.raises(ConfinementError):
+        probe.read_text("/var/lib/dpkg/status")
+
+
+def test_glob_surfaces_unreadable_directories(tmp_path):
+    materialise(tmp_path, {"/usr/local/cuda-12.4/version.json": "{}"})
+    probe = FakeProbe(tmp_path, deny={"/usr/local"})
+    with pytest.raises(PermissionError):
+        probe.glob("/usr/local/cuda-*/version.json")
+    assert FakeProbe(tmp_path).glob("/usr/local/cuda-*/version.json") == [
+        "/usr/local/cuda-12.4/version.json"
+    ]
+    assert FakeProbe(tmp_path).glob("/usr/local") == ["/usr/local"]
+    assert FakeProbe(tmp_path).glob("/nope") == []
+
+
+def test_host_probe_detects_snap(monkeypatch, tmp_path):
+    monkeypatch.setenv("SNAP", "/snap/gpu-doctor/1")
+    # No /var/lib/snapd/hostfs here, so it falls back to plain paths.
+    assert HostProbe("/").confined == os.path.isdir("/var/lib/snapd/hostfs")
+    assert not HostProbe(tmp_path).confined  # --root never maps to hostfs

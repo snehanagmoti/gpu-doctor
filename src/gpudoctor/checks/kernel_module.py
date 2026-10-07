@@ -13,7 +13,7 @@ from ..runner import Check
 from ..system import (
     container_type,
     driver_branches,
-    installed_packages,
+    installed_packages_or_none,
     loaded_modules,
     nvidia_kernel_version,
 )
@@ -42,7 +42,8 @@ def run(probe: SystemProbe) -> CheckResult:
             evidence=evidence,
             facts={"kernel_module_version": version or "", "loaded_modules": " ".join(loaded)},
         )
-    if not container_type(probe) and not driver_branches(installed_packages(probe)):
+    packages = installed_packages_or_none(probe)  # None inside a snap: assume a driver
+    if not container_type(probe) and packages is not None and not driver_branches(packages):
         return CheckResult(
             ID,
             Status.SKIP,

@@ -13,9 +13,16 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 
 from .model import CheckResult, Evidence, Status
-from .probe import SystemProbe
+from .probe import ConfinementError, SystemProbe
 
 ISSUES_URL = "https://github.com/snehanagmoti/gpu-doctor/issues"
+SNAP_FIXES = (
+    "sudo snap connect gpu-doctor:hardware-observe",
+    "sudo snap connect gpu-doctor:kernel-module-observe",
+    "sudo snap connect gpu-doctor:system-observe",
+    "sudo add-apt-repository ppa:snehanagmoti/gpu-doctor",
+    "sudo apt install gpu-doctor",
+)
 
 CheckFunc = Callable[[SystemProbe], CheckResult]
 
@@ -62,6 +69,18 @@ def _skip(check: Check, summary: str, **kwargs: object) -> CheckResult:
 def run_one(check: Check, probe: SystemProbe) -> CheckResult:
     try:
         result = check.func(probe)
+    except ConfinementError as exc:
+        return _skip(
+            check,
+            f"Not readable from inside the snap: {exc.filename}",
+            explanation=(
+                "Strict snap confinement hides this file. Connect the snap's interfaces "
+                "if you have not yet; the package database and DKMS state are never "
+                "visible to the snap, so for those checks install the Debian package "
+                "from the PPA instead."
+            ),
+            fixes=SNAP_FIXES,
+        )
     except PermissionError as exc:
         where = f" {exc.filename}" if exc.filename else ""
         return _skip(

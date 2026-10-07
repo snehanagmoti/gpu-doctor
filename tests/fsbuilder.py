@@ -9,6 +9,7 @@ kernel was upgraded and DKMS did not rebuild").
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,11 +27,14 @@ class Dir:
 Content = str | bytes | Symlink | Dir | None  # None deletes a path from a scenario
 
 
-def materialise(root: Path, files: dict[str, Content]) -> None:
+def materialise(
+    root: Path, files: dict[str, Content], where: Callable[[str], Path] | None = None
+) -> None:
+    """Write ``files`` under ``root``; ``where`` can remap system paths (snap hostfs)."""
     for path, content in files.items():
         if content is None:
             continue
-        dest = root / path.lstrip("/")
+        dest = where(path) if where else root / path.lstrip("/")
         if isinstance(content, Dir):
             dest.mkdir(parents=True, exist_ok=True)
             continue

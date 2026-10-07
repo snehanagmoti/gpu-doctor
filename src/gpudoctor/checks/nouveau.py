@@ -14,7 +14,7 @@ from ..model import CheckResult, Evidence, Status
 from ..probe import SystemProbe
 from ..runner import Check
 from ..system import (
-    installed_packages,
+    installed_packages_or_none,
     loaded_modules,
     nvidia_driver_packages,
     nvidia_kernel_version,
@@ -38,8 +38,15 @@ def blacklist_sources(probe: SystemProbe) -> list[str]:
     """Where nouveau is blocked: modprobe.d files and/or the kernel command line."""
     sources = []
     for directory in MODPROBE_DIRS:
-        for path in probe.glob(f"{directory}/*.conf"):
-            text = probe.read_text(path) or ""
+        try:
+            paths = probe.glob(f"{directory}/*.conf")
+        except PermissionError:  # some directories are hidden from a snap
+            continue
+        for path in paths:
+            try:
+                text = probe.read_text(path) or ""
+            except PermissionError:
+                continue
             if _BLACKLIST_LINE.search(text):
                 sources.append(path)
     cmdline = probe.read_text("/proc/cmdline") or ""
@@ -52,8 +59,12 @@ def blacklist_sources(probe: SystemProbe) -> list[str]:
 def run(probe: SystemProbe) -> CheckResult:
     modules = loaded_modules(probe)
     sources = blacklist_sources(probe)
-    nvidia_installed = bool(
-        nvidia_driver_packages(installed_packages(probe)) or nvidia_kernel_version(probe)
+    packages = installed_packages_or_none(probe)
+    # Unknown (inside a snap) counts as installed: nouveau loaded is then worth a FAIL.
+    nvidia_installed = (
+        packages is None
+        or bool(nvidia_driver_packages(packages))
+        or bool(nvidia_kernel_version(probe))
     )
     evidence = (
         Evidence(

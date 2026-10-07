@@ -187,6 +187,14 @@ def installed_packages(probe: SystemProbe) -> dict[str, Package]:
     return _package_cache[probe]
 
 
+def installed_packages_or_none(probe: SystemProbe) -> dict[str, Package] | None:
+    """Like installed_packages(), but None when the database cannot be read (snap)."""
+    try:
+        return installed_packages(probe)
+    except PermissionError:
+        return None
+
+
 def has_dpkg_database(probe: SystemProbe) -> bool:
     return probe.exists("/var/lib/dpkg/status")
 
@@ -360,8 +368,13 @@ def pci_device_names(probe: SystemProbe, wanted: Iterable[tuple[str, str]]) -> d
     vendors = {v for v, _ in wanted_set}
     names: dict[str, str] = {}
     text = None
-    for path in PCI_IDS_PATHS:
-        text = probe.read_text(path)
+    snap = probe.getenv("SNAP")
+    candidates = ([f"{snap}{p}" for p in PCI_IDS_PATHS] if snap else []) + list(PCI_IDS_PATHS)
+    for path in candidates:
+        try:
+            text = probe.read_text(path)
+        except PermissionError:  # e.g. the host's copy from inside a snap
+            continue
         if text:
             break
     if not text:
