@@ -1,0 +1,42 @@
+# bash completion for gpu-doctor                          -*- shell-script -*-
+# Installed to /usr/share/bash-completion/completions/gpu-doctor and loaded
+# on demand by bash-completion the first time "gpu-doctor <TAB>" is used.
+
+_gpu_doctor()
+{
+    local cur prev words cword
+    _init_completion -s || return
+
+    case $prev in
+        -c | --check)
+            # Complete the part after the last comma, so "a,b<TAB>" works.
+            local ids prefix=""
+            ids=$("$1" --list-checks 2>/dev/null | cut -d' ' -f1)
+            if [[ $cur == *,* ]]; then
+                prefix=${cur%,*},
+                cur=${cur##*,}
+            fi
+            COMPREPLY=($(compgen -P "$prefix" -W "$ids" -- "$cur"))
+            return
+            ;;
+        --color | --colour)
+            COMPREPLY=($(compgen -W 'auto always never' -- "$cur"))
+            return
+            ;;
+        --root)
+            _filedir -d
+            return
+            ;;
+        -h | --help | --version | --list-checks)
+            return
+            ;;
+    esac
+
+    if [[ $cur == -* ]]; then
+        COMPREPLY=($(compgen -W '--json --report --list-checks --check --verbose
+            --color --colour --root --version --help -c -v -h' -- "$cur"))
+    fi
+} &&
+    complete -F _gpu_doctor gpu-doctor
+
+# ex: filetype=sh

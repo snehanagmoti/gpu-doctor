@@ -1,0 +1,176 @@
+.\" Manual page for gpu-doctor. Preview with: man ./docs/gpu-doctor.1
+.TH GPU-DOCTOR 1 "October 2026" "gpu-doctor 0.1.0" "User Commands"
+.SH NAME
+gpu-doctor \- diagnose NVIDIA driver and CUDA problems on Ubuntu
+.SH SYNOPSIS
+.B gpu-doctor
+.RB [ \-\-json | \-\-report | \-\-list\-checks ]
+.RB [ \-c
+.IR ID [, ID ...]]
+.RB [ \-v ]
+.RB [ \-\-color
+.IR WHEN ]
+.RB [ \-\-root
+.IR DIR ]
+.br
+.B gpu-doctor
+.RB [ \-\-help | \-\-version ]
+.SH DESCRIPTION
+.B gpu-doctor
+inspects an Ubuntu system for the most common reasons an NVIDIA GPU or CUDA
+does not work: no driver package, the kernel module not loaded, no module
+built for the running kernel, missing kernel headers, the nouveau driver
+holding the GPU, Secure Boot rejecting an unsigned module, a mismatch between
+the loaded module and the userspace libraries, and a CUDA toolkit that is too
+new for the driver.
+.PP
+Each check prints PASS, WARN, FAIL or SKIP, a one-line summary, an
+explanation, and the exact commands that would fix the problem.
+.PP
+.B gpu-doctor is read-only.
+It never changes the system and never runs the commands it suggests. It reads
+files under
+.IR /proc ,
+.IR /sys ,
+.I /var/lib/dpkg
+and
+.I /var/lib/dkms
+directly and only runs a few read-only programs
+.RB ( nvidia-smi ,
+.BR mokutil ,
+.BR modinfo ,
+.BR nvcc ,
+.BR prime-select ,
+.BR lspci )
+when they are available.
+.SH OPTIONS
+.TP
+.B \-\-json
+Print machine-readable JSON. The format is described in
+.I /usr/share/doc/gpu-doctor/json-schema.json
+and only changes incompatibly together with its
+.B schema_version
+field.
+.TP
+.B \-\-report
+Print a block of text suitable for pasting into a forum post or bug report.
+The hostname, username, home directory, UUIDs, serial numbers and MAC
+addresses are redacted.
+.TP
+.B \-\-list\-checks
+List the check identifiers and their titles, then exit.
+.TP
+.BR \-c ", " \-\-check " " \fIID\fR
+Run only the given check. May be repeated or given a comma-separated list.
+Checks that the selected check depends on are run as well.
+.TP
+.BR \-v ", " \-\-verbose
+Also show the evidence for every check: which file or command was looked at
+and what it contained.
+.TP
+.BR \-\-color ", " \-\-colour " " \fIWHEN\fR
+Colourise the output:
+.BR auto " (the default),"
+.BR always " or"
+.BR never .
+In
+.B auto
+mode colour is used only when standard output is a terminal and the
+.B NO_COLOR
+environment variable is not set.
+.TP
+.BI \-\-root " DIR"
+Inspect a copy of a system mounted at
+.I DIR
+instead of the running system. No commands are run in this mode.
+.TP
+.B \-\-version
+Print the version and exit.
+.TP
+.BR \-h ", " \-\-help
+Print a usage summary and exit.
+.SH CHECKS
+.TP
+.B system_info
+Operating system, kernel and architecture; warns if the system is not Ubuntu.
+.TP
+.B gpu_present
+An NVIDIA display controller exists on the PCI bus.
+.TP
+.B driver_package
+An Ubuntu NVIDIA driver package is installed; detects drivers installed with
+NVIDIA's .run installer and leftovers from several driver branches.
+.TP
+.B kernel_module
+The nvidia kernel module is loaded.
+.TP
+.B module_build
+A module exists for the running kernel, either Canonical's prebuilt package or
+a DKMS build.
+.TP
+.B kernel_headers
+Headers for DKMS exist for the running kernel and will be installed for
+future kernels.
+.TP
+.B nouveau
+The open-source nouveau driver is not holding the GPU.
+.TP
+.B secure_boot
+Secure Boot is not blocking an unsigned, locally built module.
+.TP
+.B version_mismatch
+The loaded kernel module matches the installed userspace libraries.
+.TP
+.B nvidia_smi
+nvidia-smi can talk to the driver.
+.TP
+.B cuda_compat
+Every installed CUDA toolkit is supported by the installed driver.
+.TP
+.B container_toolkit
+Docker can use the GPU (only when Docker is installed).
+.TP
+.B prime
+On hybrid-graphics laptops, the NVIDIA GPU is not switched off.
+.SH EXIT STATUS
+.TP
+.B 0
+Every check passed or was skipped.
+.TP
+.B 1
+At least one check produced a warning.
+.TP
+.B 2
+At least one check failed.
+.TP
+.B 3
+gpu-doctor itself failed: invalid arguments or an internal error.
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+If set to a non-empty value, disables colour in
+.B auto
+mode. See https://no-color.org/.
+.SH EXAMPLES
+.TP
+Diagnose the system:
+.B gpu-doctor
+.TP
+Only check Secure Boot and the kernel module:
+.B gpu-doctor \-\-check secure_boot,kernel_module
+.TP
+Produce a redacted report for a forum post:
+.B gpu-doctor \-\-report
+.TP
+Use from a script:
+.B gpu-doctor \-\-json | jq \-r '.checks[] | select(.status == "fail") | .id'
+.SH SEE ALSO
+.BR ubuntu-drivers (1),
+.BR nvidia-smi (1),
+.BR dkms (8),
+.BR mokutil (1),
+.BR modprobe.d (5)
+.SH BUGS
+Report bugs at https://github.com/snehanagmoti/gpu-doctor/issues.
+Please attach the output of
+.BR "gpu-doctor \-\-report" .
