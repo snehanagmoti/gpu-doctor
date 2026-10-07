@@ -12,8 +12,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from fsbuilder import Content, Dir, Symlink, materialise
 from gpudoctor.probe import CommandResult, FakeProbe
+
+from fsbuilder import Content, Dir, Symlink, materialise
 
 KERNEL = "6.8.0-45-generic"
 NEW_KERNEL = "6.8.0-47-generic"
@@ -174,7 +175,9 @@ def healthy() -> Scenario:
         f"/usr/src/linux-headers-{KERNEL}": Dir(),
         f"/lib/modules/{KERNEL}/build": Symlink(f"/usr/src/linux-headers-{KERNEL}"),
         f"/lib/modules/{KERNEL}/kernel/nvidia-550srv/nvidia.ko": b"\x7fELF",
-        "/lib/modprobe.d/nvidia-graphics-drivers.conf": "blacklist nouveau\noptions nouveau modeset=0\n",
+        "/lib/modprobe.d/nvidia-graphics-drivers.conf": (
+            "blacklist nouveau\noptions nouveau modeset=0\n"
+        ),
         "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.550.120": b"",
         "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1": Symlink("libnvidia-ml.so.550.120"),
         "/usr/lib/x86_64-linux-gnu/libcuda.so.550.120": b"",
@@ -333,3 +336,78 @@ def in_docker() -> Scenario:
             SECURE_BOOT_VAR: None,
         }
     )
+
+
+def prebuilt_missing_for_new_kernel() -> Scenario:
+    """Booted a new kernel; the prebuilt module package exists only for the old one."""
+    return healthy().but(
+        files={
+            "/proc/sys/kernel/osrelease": NEW_KERNEL + "\n",
+            "/proc/modules": modules_file("snd_hda_intel"),
+            "/proc/driver/nvidia/version": None,
+            "/sys/module/nvidia/taint": None,
+        },
+        commands={NVIDIA_SMI_QUERY: nouveau_loaded().commands[NVIDIA_SMI_QUERY]},
+    )
+
+
+def multiple_branches() -> Scenario:
+    """535 leftovers next to the active 550 driver."""
+    return healthy().but(
+        packages={
+            "libnvidia-compute-535": "535.183.01-0ubuntu0.24.04.1",
+            "nvidia-utils-535": "535.183.01-0ubuntu0.24.04.1",
+        },
+        files={"/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.183.01": b""},
+    )
+
+
+def old_driver_new_cuda() -> Scenario:
+    """Driver 535 with CUDA 12.4 (minor-version compatibility) and CUDA 13.0 (unsupported)."""
+    return healthy().but(
+        packages={
+            "nvidia-driver-550": None,
+            "libnvidia-compute-550": None,
+            "nvidia-utils-550": None,
+            "nvidia-kernel-common-550": None,
+            f"linux-modules-nvidia-550-{KERNEL}": None,
+            "linux-modules-nvidia-550-generic": None,
+            "nvidia-driver-535": "535.183.01-0ubuntu0.24.04.1",
+            "libnvidia-compute-535": "535.183.01-0ubuntu0.24.04.1",
+            f"linux-modules-nvidia-535-{KERNEL}": "6.8.0-45.45+1",
+        },
+        files={
+            "/proc/driver/nvidia/version": nvrm("535.183.01"),
+            "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.550.120": None,
+            "/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.183.01": b"",
+            "/usr/local/cuda-13.0/version.json": '{"cuda": {"version": "13.0.1"}}',
+        },
+        commands={NVIDIA_SMI_QUERY: ok("NVIDIA GeForce RTX 4090, 535.183.01, 00000000:01:00.0\n")},
+    )
+
+
+def hybrid_integrated_only() -> Scenario:
+    """Laptop with Intel + NVIDIA, PRIME profile set to the integrated GPU."""
+    return healthy().but(
+        files={
+            **pci("0000:00:02.0", "8086", "a7a0", "030000"),
+            **pci("0000:01:00.0", "10de", "28e0", "030200"),
+            "/sys/bus/pci/devices/0000:01:00.1/vendor": None,
+            "/sys/bus/pci/devices/0000:01:00.1/device": None,
+            "/sys/bus/pci/devices/0000:01:00.1/class": None,
+            "/etc/prime-discrete": "off\n",
+        },
+    )
+
+
+def docker_without_toolkit() -> Scenario:
+    return healthy().but(packages={"docker.io": "24.0.7-0ubuntu4.1"})
+
+
+def legacy_bios() -> Scenario:
+    return healthy().but(files={"/sys/firmware/efi/efivars": None, SECURE_BOOT_VAR: None})
+
+
+def in_snap() -> Scenario:
+    """gpu-doctor installed as a strictly confined snap: no host binaries."""
+    return healthy().but(commands={NVIDIA_SMI_QUERY: None}, env={"SNAP": "/snap/gpu-doctor/x1"})
