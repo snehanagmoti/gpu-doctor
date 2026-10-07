@@ -1,0 +1,21 @@
+name: New check or feature
+description: Suggest a problem gpu-doctor should detect, or a feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What goes wrong on real machines?
+      description: Describe the broken setup and, if you can, link an AskUbuntu question or Launchpad bug.
+    validations:
+      required: true
+  - type: textarea
+    id: detect
+    attributes:
+      label: How could it be detected?
+      description: Which files under /proc, /sys, /var/lib/... show the problem? (Reading files is preferred over running programs.)
+  - type: textarea
+    id: fix
+    attributes:
+      label: What is the fix?
+      description: The exact commands, and whether they differ between Ubuntu 22.04 and 24.04.

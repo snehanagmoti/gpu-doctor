@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question on AskUbuntu
+    url: https://askubuntu.com/questions/tagged/nvidia
+    about: For general help with NVIDIA drivers on Ubuntu.
