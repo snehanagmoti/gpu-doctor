@@ -8,9 +8,9 @@ export PYBUILD_NAME = gpudoctor
 # pybuild runs the tests inside the build directory, which only contains the
 # built package. Copy in the tests and the files they read, run pytest on
 # them, then remove the copies so they are not installed.
-export PYBUILD_BEFORE_TEST = cp -r {dir}/tests {dir}/docs {dir}/completions {dir}/README.md {build_dir}
+export PYBUILD_BEFORE_TEST = cp -r {dir}/tests {dir}/docs {dir}/completions {dir}/snap {dir}/README.md {build_dir}
 export PYBUILD_TEST_ARGS = -p no:cacheprovider tests
-export PYBUILD_AFTER_TEST = rm -rf {build_dir}/tests {build_dir}/docs {build_dir}/completions {build_dir}/README.md
+export PYBUILD_AFTER_TEST = rm -rf {build_dir}/tests {build_dir}/docs {build_dir}/completions {build_dir}/snap {build_dir}/README.md
 
 %:
 	dh $@ --buildsystem=pybuild

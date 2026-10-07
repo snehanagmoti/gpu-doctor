@@ -108,6 +108,8 @@ class Scenario:
     env: dict[str, str] = field(default_factory=dict)
     machine: str = "x86_64"
     deny: frozenset[str] = frozenset()
+    # Set to /var/lib/snapd/hostfs to lay the machine out as a snap sees it.
+    host_prefix: str | None = None
 
     def but(
         self,
@@ -146,10 +148,17 @@ class Scenario:
         files = dict(self.files)
         if self.packages is not None:
             files["/var/lib/dpkg/status"] = dpkg_status(self.packages)
-        materialise(root, files)
-        return FakeProbe(
-            root, commands=self.commands, env=self.env, machine=self.machine, deny=self.deny
+        probe = FakeProbe(
+            root,
+            commands=self.commands,
+            env=self.env,
+            machine=self.machine,
+            deny=self.deny,
+            host_prefix=self.host_prefix,
         )
+        # Let the probe decide where each file lives (hostfs inside a snap).
+        materialise(root, files, where=probe.path)
+        return probe
 
 
 # ---------------------------------------------------------------------------
@@ -409,5 +418,29 @@ def legacy_bios() -> Scenario:
 
 
 def in_snap() -> Scenario:
-    """gpu-doctor installed as a strictly confined snap: no host binaries."""
-    return healthy().but(commands={NVIDIA_SMI_QUERY: None}, env={"SNAP": "/snap/gpu-doctor/x1"})
+    """Healthy host, gpu-doctor running as a strictly confined snap.
+
+    The host's files are under /var/lib/snapd/hostfs and AppArmor denies most
+    of them; only /proc, /sys, /etc and a few other directories are shared.
+    The snap ships its own pci.ids. Host binaries are unavailable.
+    """
+    snap = "/snap/gpu-doctor/x1"
+    return replace(
+        healthy().but(
+            commands={NVIDIA_SMI_QUERY: None},
+            env={"SNAP": snap},
+            files={f"{snap}/usr/share/misc/pci.ids": PCI_IDS},
+            # What AppArmor denies without the system-files interface:
+            deny={
+                "/var/lib/dpkg/status",
+                "/var/lib/dkms",
+                "/usr/local",
+                "/usr/lib/x86_64-linux-gnu",
+                "/lib/modprobe.d",
+                "/usr/lib/modprobe.d",
+                "/usr/share/misc/pci.ids",
+                "/usr/share/hwdata/pci.ids",
+            },
+        ),
+        host_prefix="/var/lib/snapd/hostfs",
+    )

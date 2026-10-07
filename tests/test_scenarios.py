@@ -38,7 +38,7 @@ EXPECTED = {
     "hybrid_integrated_only":            ([P, P, P, P, P, S, P, P, P, P, P, S, W], 1),
     "docker_without_toolkit":            ([P, P, P, P, P, S, P, P, P, P, P, W, S], 1),
     "legacy_bios":                       ([P, P, P, P, P, S, P, S, P, P, P, S, S], 0),
-    "in_snap":                           ([P, P, P, P, P, S, P, P, P, S, P, S, S], 0),
+    "in_snap":                           ([P, P, S, P, S, S, P, P, S, S, S, S, S], 0),
 }
 # fmt: on
 

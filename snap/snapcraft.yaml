@@ -1,0 +1,58 @@
+# Snap packaging for gpu-doctor.  See docs/snap.md for the design notes.
+#
+#   snapcraft pack                       (builds in an LXD or Multipass VM)
+#   sudo snap install --dangerous ./gpu-doctor_*.snap
+#   sudo snap connect gpu-doctor:hardware-observe
+#   sudo snap connect gpu-doctor:kernel-module-observe
+#   sudo snap connect gpu-doctor:system-observe
+name: gpu-doctor
+# Keep in sync with src/gpudoctor/__init__.py (a test enforces this).
+version: '0.1.0'
+summary: Read-only diagnostics for NVIDIA driver and CUDA setups on Ubuntu
+description: |
+  gpu-doctor finds the common reasons an NVIDIA GPU or CUDA does not work on
+  Ubuntu (no driver, module not built for the running kernel, nouveau holding
+  the GPU, Secure Boot rejecting an unsigned module, library/module version
+  mismatch, CUDA too new for the driver) and prints the commands that fix
+  them. It never changes the system.
+
+  Strict confinement hides the host's package database and DKMS state from
+  the snap, so some checks are skipped. For the complete diagnosis install
+  the Debian package from ppa:snehanagmoti/gpu-doctor.
+license: GPL-3.0-or-later
+website: https://github.com/snehanagmoti/gpu-doctor
+source-code: https://github.com/snehanagmoti/gpu-doctor
+issues: https://github.com/snehanagmoti/gpu-doctor/issues
+contact: https://github.com/snehanagmoti/gpu-doctor/issues
+
+# core24 = Ubuntu 24.04 runtime with Python 3.12, supported until 2034.
+base: core24
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  gpu-doctor:
+    command: bin/gpu-doctor
+    completer: usr/share/bash-completion/completions/gpu-doctor
+    plugs:
+      # None of these is auto-connected; see docs/snap.md.
+      - hardware-observe       # /sys/{bus,devices,firmware}: PCI devices, Secure Boot efivars
+      - kernel-module-observe  # /sys/module: module taint and parameters
+      - system-observe         # the host's os-release via /var/lib/snapd/hostfs
+
+parts:
+  gpu-doctor:
+    plugin: python
+    source: .
+    # The host's pci.ids is not readable from the snap, so ship our own copy
+    # to turn PCI ids like 10de:2684 into "GeForce RTX 4090".
+    stage-packages:
+      - pci.ids
+    override-build: |
+      craftctl default
+      install -D -m 0644 completions/gpu-doctor \
+        "$CRAFT_PART_INSTALL/usr/share/bash-completion/completions/gpu-doctor"

@@ -38,3 +38,9 @@ def test_readme_lists_every_check():
     readme = (ROOT / "README.md").read_text()
     for check in ALL_CHECKS:
         assert f"`{check.id}`" in readme, check.id
+
+
+def test_snap_version_matches_package():
+    snapcraft = (ROOT / "snap" / "snapcraft.yaml").read_text()
+    assert f"\nversion: '{__version__}'\n" in snapcraft
+    assert "confinement: strict" in snapcraft
