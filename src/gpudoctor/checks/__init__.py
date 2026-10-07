@@ -14,7 +14,10 @@ from . import (
     kernel_headers,
     kernel_module,
     module_build,
+    nouveau,
+    secure_boot,
     system_info,
+    version_mismatch,
 )
 
 ALL_CHECKS: tuple[Check, ...] = (
@@ -24,6 +27,9 @@ ALL_CHECKS: tuple[Check, ...] = (
     kernel_module.CHECK,
     module_build.CHECK,
     kernel_headers.CHECK,
+    nouveau.CHECK,
+    secure_boot.CHECK,
+    version_mismatch.CHECK,
 )
 
 __all__ = ["ALL_CHECKS"]
