@@ -186,7 +186,7 @@ class HostProbe(SystemProbe):
         # LC_ALL=C so we parse English, stable output regardless of locale.
         env = dict(os.environ, LC_ALL="C")
         try:
-            proc = subprocess.run(  # noqa: S603 - argv is fixed by our own checks
+            proc = subprocess.run(
                 [exe, *argv[1:]],
                 capture_output=True,
                 text=True,

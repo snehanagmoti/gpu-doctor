@@ -62,7 +62,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="run only this check (repeatable or comma-separated); dependencies run too",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="show evidence: which files were read and what they contained"
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="show evidence: which files were read and what they contained",
     )
     parser.add_argument(
         "--color",

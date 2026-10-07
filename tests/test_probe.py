@@ -2,8 +2,9 @@ import os
 
 import pytest
 
-from fsbuilder import Dir, Symlink, materialise
 from gpudoctor.probe import CommandResult, FakeProbe, HostProbe
+
+from fsbuilder import Dir, Symlink, materialise
 
 
 @pytest.fixture

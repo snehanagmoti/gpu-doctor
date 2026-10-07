@@ -66,7 +66,12 @@ def test_wrong_check_id_is_internal_error(probe):
 
 
 def test_select_checks_adds_dependencies_in_order():
-    checks = [make("info"), make("gpu"), make("pkg", requires=("gpu",)), make("mod", requires=("pkg",))]
+    checks = [
+        make("info"),
+        make("gpu"),
+        make("pkg", requires=("gpu",)),
+        make("mod", requires=("pkg",)),
+    ]
     assert [c.id for c in select_checks(checks, ["mod"])] == ["gpu", "pkg", "mod"]
     assert [c.id for c in select_checks(checks, None)] == ["info", "gpu", "pkg", "mod"]
     with pytest.raises(UnknownCheckError):

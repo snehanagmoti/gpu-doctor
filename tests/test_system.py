@@ -1,6 +1,7 @@
-from fsbuilder import Dir, materialise
 from gpudoctor import system
 from gpudoctor.probe import FakeProbe
+
+from fsbuilder import Dir, materialise
 
 DPKG_STATUS = """\
 Package: nvidia-driver-550
@@ -140,7 +141,7 @@ def test_dkms_layout(tmp_path):
 
 def test_parse_lspci():
     out = (
-        "00:02.0 VGA compatible controller [0300]: Intel Corporation Raptor Lake [8086:a780] (rev 04)\n"
+        "00:02.0 VGA compatible controller [0300]: Intel Corporation [8086:a780] (rev 04)\n"
         "01:00.0 3D controller [0302]: NVIDIA Corporation AD107M [10de:28e0] (rev a1)\n"
         "garbage line\n"
     )

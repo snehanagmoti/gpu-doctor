@@ -32,8 +32,10 @@ def run(probe: SystemProbe) -> CheckResult:
         for d in gpus
     ]
     evidence = tuple(
-        Evidence(f"{source}/{d.address}" if source.startswith("/") else source,
-                 f"vendor=0x{d.vendor} device=0x{d.device} class=0x{d.pci_class}")
+        Evidence(
+            f"{source}/{d.address}" if source.startswith("/") else source,
+            f"vendor=0x{d.vendor} device=0x{d.device} class=0x{d.pci_class}",
+        )
         for d in devices
         if d.is_display
     ) or (Evidence(source, f"{len(devices)} PCI devices, none of them a display controller"),)

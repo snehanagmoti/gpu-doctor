@@ -1,9 +1,10 @@
 """system_info and gpu_present."""
 
-from scenarios import healthy, no_gpu, pci
 from gpudoctor.checks import gpu_present, system_info
 from gpudoctor.model import Status
 from gpudoctor.probe import CommandResult
+
+from scenarios import healthy, no_gpu, pci
 
 
 def test_system_info_healthy(tmp_path):
@@ -28,8 +29,11 @@ def test_system_info_ubuntu_derivative_is_fine(tmp_path):
 
 
 def test_system_info_missing_everything(tmp_path):
-    result = system_info.run(no_gpu().but(files={"/etc/os-release": None,
-                                                  "/proc/sys/kernel/osrelease": None}).probe(tmp_path))
+    result = system_info.run(
+        no_gpu()
+        .but(files={"/etc/os-release": None, "/proc/sys/kernel/osrelease": None})
+        .probe(tmp_path)
+    )
     assert result.status is Status.WARN
     assert "Unknown Linux, kernel unknown" in result.summary
 
