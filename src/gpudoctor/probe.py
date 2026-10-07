@@ -49,6 +49,8 @@ class SystemProbe(abc.ABC):
 
     def __init__(self, root: str | os.PathLike[str] = "/") -> None:
         self.root = Path(root)
+        # False when commands must not run (HostProbe inspecting a --root image).
+        self.commands_enabled = True
 
     # -- filesystem -------------------------------------------------------
 

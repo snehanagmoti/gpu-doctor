@@ -33,6 +33,8 @@ _KNOWN_ERRORS = (
 
 
 def run(probe: SystemProbe) -> CheckResult:
+    if not probe.commands_enabled:
+        return CheckResult(ID, Status.SKIP, "Commands are not run when inspecting another root")
     if running_in_snap(probe):
         return CheckResult(
             ID, Status.SKIP, "Running as a snap, which cannot execute the host's nvidia-smi"
