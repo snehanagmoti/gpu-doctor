@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint and type check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff mypy
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - name: shellcheck
+        run: |
+          shellcheck -s sh scripts/*.sh debian/tests/smoke debian/tests/unit
+          shellcheck -s bash completions/gpu-doctor
+      - name: Man page renders without warnings
+        run: groff -man -Tutf8 -ww -z docs/gpu-doctor.1
+
+  test:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The Python versions each Ubuntu LTS ships.
+          - os: ubuntu-22.04
+            python: "3.10"
+          - os: ubuntu-24.04
+            python: "3.12"
+          - os: ubuntu-24.04
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install pytest pytest-cov
+      - run: pytest --cov --cov-report=term-missing --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.python }}
+          path: coverage.xml
+
+  deb:
+    name: Debian package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper dh-python python3-all python3-setuptools python3-pytest \
+            devscripts lintian fakeroot
+      - name: Build, run the tests inside the build, and lint
+        run: ./scripts/build-deb.sh "$PWD/build-area"
+      - name: Install the package and smoke-test it
+        run: |
+          sudo apt-get install -y ./build-area/gpu-doctor_*_all.deb
+          man -w gpu-doctor
+          test -f /usr/share/bash-completion/completions/gpu-doctor
+          rc=0; gpu-doctor --json > out.json || rc=$?
+          echo "exit status $rc"; test "$rc" -le 2
+          python3 -c 'import json; d = json.load(open("out.json")); assert not any(c["internal_error"] for c in d["checks"])'
+          gpu-doctor --color never || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.os }}
+          path: |
+            build-area/*.deb
+            build-area/*.dsc
+            build-area/*.tar.*
+            build-area/*.changes
+            build-area/*.buildinfo
+
+  snap:
+    name: Snap
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: snapcore/action-build@v1
+        id: build
+      - name: Install and run the snap
+        run: |
+          sudo snap install --dangerous ${{ steps.build.outputs.snap }}
+          for plug in hardware-observe kernel-module-observe system-observe; do
+            sudo snap connect gpu-doctor:$plug
+          done
+          rc=0; gpu-doctor --json > out.json || rc=$?
+          echo "exit status $rc"; test "$rc" -le 2
+          gpu-doctor --verbose --color never || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap
+          path: ${{ steps.build.outputs.snap }}
+
+  lxd:
+    name: Install test in clean LXD containers
+    needs: deb
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          path: artifacts
+      - name: Set up LXD
+        run: |
+          sudo snap install lxd || sudo snap refresh lxd
+          sudo lxd waitready
+          sudo lxd init --auto
+          # Docker's firewall rules on GitHub runners block LXD bridge traffic.
+          sudo iptables -I DOCKER-USER -i lxdbr0 -j ACCEPT || true
+          sudo iptables -I DOCKER-USER -o lxdbr0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || true
+      - name: Install the .deb in 22.04 and 24.04 containers
+        run: |
+          sudo ./scripts/lxd-integration.sh 22.04 artifacts/deb-ubuntu-22.04/gpu-doctor_*_all.deb
+          sudo ./scripts/lxd-integration.sh 24.04 artifacts/deb-ubuntu-24.04/gpu-doctor_*_all.deb

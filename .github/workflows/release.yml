@@ -1,0 +1,40 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the packages and publish a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the version
+        run: |
+          version=$(python3 -c 'import sys; sys.path.insert(0, "src"); import gpudoctor; print(gpudoctor.__version__)')
+          test "v$version" = "$GITHUB_REF_NAME"
+      - name: Build the Debian package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            debhelper dh-python python3-all python3-setuptools python3-pytest \
+            devscripts lintian fakeroot
+          ./scripts/build-deb.sh "$PWD/build-area"
+      - uses: snapcore/action-build@v1
+        id: snap
+      - name: Build the Python sdist and wheel
+        run: |
+          pip install build
+          python3 -m build
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            build-area/*.deb
+            build-area/*.orig.tar.gz
+            ${{ steps.snap.outputs.snap }}
+            dist/*
