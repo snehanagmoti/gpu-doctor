@@ -194,7 +194,11 @@ def test_unexpected_renderer_error_exits_3(capsys, healthy_root, monkeypatch):
 
 
 def test_python_dash_m(tmp_path):
-    src = Path(__file__).resolve().parent.parent / "src"
+    # Wherever gpudoctor was imported from: src/ in a checkout, the build
+    # directory during the Debian build, dist-packages under autopkgtest.
+    import gpudoctor
+
+    src = Path(gpudoctor.__file__).resolve().parent.parent
     proc = subprocess.run(
         [sys.executable, "-m", "gpudoctor", "--version"],
         capture_output=True,
