@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/snehanagmoti/gpu-doctor/blob/main/docs/json-schema.json",
+  "title": "gpu-doctor --json output",
+  "description": "Stable machine-readable output of gpu-doctor. schema_version only changes on incompatible changes; new optional keys may be added at any time.",
+  "type": "object",
+  "required": ["schema_version", "tool", "overall_status", "exit_code", "checks"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "gpu-doctor"},
+        "version": {"type": "string"}
+      }
+    },
+    "overall_status": {"$ref": "#/$defs/status"},
+    "exit_code": {"type": "integer", "enum": [0, 1, 2, 3]},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "summary", "explanation", "fixes", "evidence", "facts", "internal_error"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "title": {"type": "string"},
+          "status": {"$ref": "#/$defs/status"},
+          "summary": {"type": "string", "minLength": 1},
+          "explanation": {"type": "string"},
+          "fixes": {
+            "description": "Shell commands the user may choose to run. gpu-doctor never runs them.",
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "source": {"type": "string"},
+                "value": {"type": "string"}
+              }
+            }
+          },
+          "facts": {
+            "description": "Check-specific key/value facts, e.g. driver_version, kernel, module_source.",
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          },
+          "internal_error": {
+            "description": "True if the check itself crashed (a gpu-doctor bug). Makes the exit code 3.",
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "status": {"type": "string", "enum": ["pass", "warn", "fail", "skip"]}
+  }
+}
