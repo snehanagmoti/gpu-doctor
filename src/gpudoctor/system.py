@@ -100,6 +100,11 @@ def container_type(probe: SystemProbe) -> str | None:
     return env or None
 
 
+def running_in_snap(probe: SystemProbe) -> bool:
+    """True inside a snap, where host binaries (dkms, mokutil, nvidia-smi) are unavailable."""
+    return bool(probe.getenv("SNAP"))
+
+
 # ---------------------------------------------------------------------------
 # Kernel modules
 
