@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Debian build output (debuild writes these next to the source tree and inside debian/)
+debian/.debhelper/
+debian/gpu-doctor/
+debian/gpu-doctor.substvars
+debian/gpu-doctor.*.debhelper
+debian/debhelper-build-stamp
+debian/files
+.pybuild/
+
+# Snap build output
+*.snap
+parts/
+stage/
+prime/
