@@ -61,6 +61,19 @@ def run(probe: SystemProbe) -> CheckResult:
     )
 
     if not drivers:
+        if branches:
+            return CheckResult(
+                ID,
+                Status.WARN,
+                f"NVIDIA libraries ({', '.join(branches)}) are installed without a driver package",
+                explanation=(
+                    "Userspace libraries are present but no nvidia-driver-* metapackage "
+                    "ties them to a kernel module, which usually means a half-finished "
+                    "install or removal."
+                ),
+                fixes=("sudo ubuntu-drivers install",),
+                evidence=evidence,
+            )
         if running:
             return CheckResult(
                 ID,
@@ -76,19 +89,6 @@ def run(probe: SystemProbe) -> CheckResult:
                 fixes=("sudo nvidia-uninstall", "sudo ubuntu-drivers install"),
                 evidence=evidence,
                 facts={"driver_source": "manual"},
-            )
-        if branches:
-            return CheckResult(
-                ID,
-                Status.WARN,
-                f"NVIDIA libraries ({', '.join(branches)}) are installed without a driver package",
-                explanation=(
-                    "Userspace libraries are present but no nvidia-driver-* metapackage "
-                    "ties them to a kernel module, which usually means a half-finished "
-                    "install or removal."
-                ),
-                fixes=("sudo ubuntu-drivers install",),
-                evidence=evidence,
             )
         return CheckResult(
             ID,
