@@ -58,6 +58,10 @@ and what it contained).
 
 ## Install
 
+> The PPA and the Snap Store listing go live with the first published
+> release. Until then, install from source or build the `.deb` yourself
+> (see Development).
+
 **From the PPA** (Ubuntu 22.04 and 24.04):
 
 ```sh
