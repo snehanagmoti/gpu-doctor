@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from ..runner import Check
 from . import (
+    container_toolkit,
     cuda_compat,
     driver_package,
     gpu_present,
@@ -17,6 +18,7 @@ from . import (
     module_build,
     nouveau,
     nvidia_smi,
+    prime,
     secure_boot,
     system_info,
     version_mismatch,
@@ -34,6 +36,8 @@ ALL_CHECKS: tuple[Check, ...] = (
     version_mismatch.CHECK,
     nvidia_smi.CHECK,
     cuda_compat.CHECK,
+    container_toolkit.CHECK,
+    prime.CHECK,
 )
 
 __all__ = ["ALL_CHECKS"]
