@@ -2,6 +2,9 @@
 # Installed to /usr/share/bash-completion/completions/gpu-doctor and loaded
 # on demand by bash-completion the first time "gpu-doctor <TAB>" is used.
 
+# shellcheck disable=SC2034,SC2207
+# (_init_completion sets words/cword; COMPREPLY=($(compgen ...)) is the
+# standard bash-completion idiom and the words never contain spaces.)
 _gpu_doctor()
 {
     local cur prev words cword

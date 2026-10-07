@@ -59,7 +59,9 @@ sign="-us -uc"
 # shellcheck disable=SC2086  # options are meant to be word-split
 (cd "$src" && dpkg-buildpackage $sign ${DPKG_BUILDPACKAGE_OPTS:-})
 
+# shellcheck disable=SC2012  # our own, well-formed file names
 changes=$(ls -t "$out"/gpu-doctor_"${version}"_*.changes | head -n 1)
 echo "== lintian $changes"
 lintian --info --display-info --pedantic --fail-on error,warning "$changes"
 echo "== built $changes"
+echo "$changes" > "$out/.last-changes"

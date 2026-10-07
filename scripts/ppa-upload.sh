@@ -26,8 +26,7 @@ for s in $series; do
     first=0
     SIGN=1 PPA_SERIES="$s" PPA_REVISION="$revision" DPKG_BUILDPACKAGE_OPTS="$opts" \
         ./scripts/build-deb.sh "$out"
-    changes=$(ls -t "$out"/gpu-doctor_*~"$s"*_source.changes 2>/dev/null | head -n 1 || true)
-    [ -n "$changes" ] || changes=$(ls -t "$out"/gpu-doctor_*_source.changes | head -n 1)
+    changes=$(cat "$out/.last-changes")
     echo "== dput $PPA $changes"
     dput "$PPA" "$changes"
 done
