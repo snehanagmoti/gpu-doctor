@@ -1,0 +1,5 @@
+version=4
+# Upstream releases are GitHub tags named vX.Y.Z. Check with: uscan --no-download --verbose
+opts="filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%@PACKAGE@-$1.tar.gz%" \
+  https://github.com/snehanagmoti/gpu-doctor/tags \
+  (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian uupdate

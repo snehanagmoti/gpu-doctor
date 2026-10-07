@@ -1,0 +1,9 @@
+#!/bin/sh
+# Run the upstream test suite against the installed gpudoctor module.
+set -eu
+cp -r tests docs completions README.md "$AUTOPKGTEST_TMP/"
+cd "$AUTOPKGTEST_TMP"
+for py in $(py3versions -s); do
+    echo "=== $py"
+    "$py" -m pytest -p no:cacheprovider tests
+done

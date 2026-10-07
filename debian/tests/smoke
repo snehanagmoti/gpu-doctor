@@ -1,0 +1,22 @@
+#!/bin/sh
+# The installed command starts, lists its checks, and produces valid JSON on a
+# real (GPU-less) test machine without crashing.
+set -eu
+
+gpu-doctor --version
+gpu-doctor --list-checks | grep -q '^gpu_present '
+
+rc=0
+gpu-doctor --json > "$AUTOPKGTEST_TMP/out.json" || rc=$?
+case "$rc" in
+    0|1|2) ;;
+    *) echo "unexpected exit status $rc" >&2; exit 1 ;;
+esac
+python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); assert d["schema_version"] == 1' \
+    "$AUTOPKGTEST_TMP/out.json"
+
+# Usage errors must exit 3, not 2 (2 means "a check failed").
+rc=0
+gpu-doctor --check no_such_check 2>/dev/null || rc=$?
+test "$rc" -eq 3
+echo "smoke: OK"

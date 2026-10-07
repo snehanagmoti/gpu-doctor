@@ -1,0 +1,11 @@
+# autopkgtest: tests run against the *installed* package, e.g. in Ubuntu's
+# proposed-migration infrastructure or locally with
+#   autopkgtest ../gpu-doctor_*.deb . -- lxd ubuntu:noble
+
+Tests: smoke
+Depends: @
+Restrictions: superficial
+
+Tests: unit
+Depends: @, python3-all, python3-pytest
+Restrictions: allow-stderr

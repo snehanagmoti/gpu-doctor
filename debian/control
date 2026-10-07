@@ -1,0 +1,35 @@
+Source: gpu-doctor
+Section: utils
+Priority: optional
+Maintainer: Sneha Nagmoti <snehanagmoti2004@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-sequence-python3,
+               python3-all,
+               python3-setuptools,
+               python3-pytest <!nocheck>,
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/snehanagmoti/gpu-doctor
+Vcs-Browser: https://github.com/snehanagmoti/gpu-doctor
+Vcs-Git: https://github.com/snehanagmoti/gpu-doctor.git
+
+Package: gpu-doctor
+Architecture: all
+Depends: ${misc:Depends},
+         ${python3:Depends},
+Suggests: mokutil,
+          nvidia-prime,
+          pciutils,
+          ubuntu-drivers-common,
+Description: read-only diagnostics for NVIDIA driver and CUDA setups
+ gpu-doctor finds the common reasons an NVIDIA GPU or CUDA does not work on
+ Ubuntu: no driver package, the kernel module not loaded, no module built for
+ the running kernel after a kernel upgrade, missing kernel headers for DKMS,
+ the nouveau driver holding the GPU, Secure Boot rejecting an unsigned module,
+ a mismatch between the loaded module and the userspace libraries, and a CUDA
+ toolkit that is too new for the driver.
+ .
+ Each problem is explained in plain language together with the exact commands
+ that fix it. The tool never changes the system. Output is available as
+ coloured text, as JSON with a documented schema, and as a redacted report
+ for bug trackers and forums.

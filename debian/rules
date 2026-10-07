@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+# dh runs every debhelper step in order; pybuild is the dh-python build system
+# that knows how to build, test and install a setuptools project for every
+# supported python3 version.
+
+export PYBUILD_NAME = gpudoctor
+
+# pybuild runs the tests inside the build directory, which only contains the
+# built package. Copy in the tests and the files they read, run pytest on
+# them, then remove the copies so they are not installed.
+export PYBUILD_BEFORE_TEST = cp -r {dir}/tests {dir}/docs {dir}/completions {dir}/README.md {build_dir}
+export PYBUILD_TEST_ARGS = -p no:cacheprovider tests
+export PYBUILD_AFTER_TEST = rm -rf {build_dir}/tests {build_dir}/docs {build_dir}/completions {build_dir}/README.md
+
+%:
+	dh $@ --buildsystem=pybuild
