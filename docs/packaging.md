@@ -151,6 +151,7 @@ autopkgtest ../build-area/gpu-doctor_0.1.0-1_all.deb . -- lxd autopkgtest/ubuntu
 | `binary-nmu-debian-revision-in-source` | The first PPA scheme, `~ppa1~22.04.1`, put two dots in the revision, which is the shape of a binary-only NMU (`1.1.1`). | PPA versions are `0.1.0-1~ppa1~22.04`. |
 | `initial-upload-closes-no-bugs` | A Debian package's first changelog entry should close its ITP bug. | Overridden with a comment: the package is not in Debian. File an ITP before proposing it. |
 | `missing-prerequisite-for-pyproject-backend` (info) | See "Why setup.py" above. | Kept deliberately for jammy support. |
+| `out-of-date-standards-version` (info, noble) | `Standards-Version: 4.6.0`. noble's lintian knows 4.6.2, but jammy's lintian only knows up to 4.6.0 and reports a newer value as the *warning* `newer-standards-version`. | Kept at 4.6.0, the newest version both releases' lintian understand; nothing in 4.6.1/4.6.2 affects this package. |
 
 ## PPA uploads
 
