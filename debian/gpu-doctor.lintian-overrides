@@ -1,4 +1,6 @@
 # This package is published through a Launchpad PPA, not uploaded to Debian,
 # so there is no ITP ("Intent To Package") bug to close yet. File an ITP and
 # drop this override before proposing the package for Debian.
-initial-upload-closes-no-bugs [usr/share/doc/gpu-doctor/changelog.Debian.gz:1]
+# (No file context on purpose: jammy's lintian reports the tag without one,
+# noble's with one, and an override without context matches both.)
+initial-upload-closes-no-bugs
