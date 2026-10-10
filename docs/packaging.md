@@ -103,6 +103,23 @@ pybuild's PEP 517 plugin (`pybuild-plugin-pyproject`). That is the better
 long-term direction, and the switch is easy once jammy support is dropped;
 for now the classic plugin builds identically on both releases.
 
+## Testing on both releases
+
+The package is built and linted on 22.04 and 24.04 in CI. To reproduce the
+22.04 build locally on a 24.04 machine, use a chroot:
+
+```sh
+sudo debootstrap --variant=buildd --components=main,universe jammy /srv/jammy http://archive.ubuntu.com/ubuntu
+sudo chroot /srv/jammy apt-get install -y debhelper dh-python python3-all \
+    python3-setuptools python3-pytest devscripts lintian fakeroot git
+sudo git clone . /srv/jammy/root/src
+sudo chroot /srv/jammy sh -c 'cd /root/src && ./scripts/build-deb.sh /root/build-area'
+```
+
+This found two problems that only show up on 22.04: the lintian override
+above, and pytest 6.2 not knowing the `pythonpath` ini option (now handled in
+`tests/conftest.py`).
+
 ## Building and checking
 
 ```sh
@@ -150,6 +167,7 @@ autopkgtest ../build-area/gpu-doctor_0.1.0-1_all.deb . -- lxd autopkgtest/ubuntu
 | dpkg-source: *Version number suggests Ubuntu changes, but Maintainer: does not have Ubuntu address* | The first version was `0.1.0-0ubuntu1`. A version containing `ubuntu` means "changed by Ubuntu developers", which this package is not. | Use the plain Debian revision `0.1.0-1`. |
 | `binary-nmu-debian-revision-in-source` | The first PPA scheme, `~ppa1~22.04.1`, put two dots in the revision, which is the shape of a binary-only NMU (`1.1.1`). | PPA versions are `0.1.0-1~ppa1~22.04`. |
 | `initial-upload-closes-no-bugs` | A Debian package's first changelog entry should close its ITP bug. | Overridden with a comment: the package is not in Debian. File an ITP before proposing it. |
+| `mismatched-override` (jammy only) | The override first named a file (`[usr/share/doc/...]`). noble's lintian reports the tag with that context, jammy's without, so on jammy the override did not match and the tag fired anyway. Found by building in a 22.04 chroot. | The override names only the tag, which matches with or without context. |
 | `missing-prerequisite-for-pyproject-backend` (info) | See "Why setup.py" above. | Kept deliberately for jammy support. |
 | `out-of-date-standards-version` (info, noble) | `Standards-Version: 4.6.0`. noble's lintian knows 4.6.2, but jammy's lintian only knows up to 4.6.0 and reports a newer value as the *warning* `newer-standards-version`. | Kept at 4.6.0, the newest version both releases' lintian understand; nothing in 4.6.1/4.6.2 affects this package. |
 

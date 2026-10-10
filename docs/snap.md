@@ -96,7 +96,7 @@ sudo journalctl -k | grep 'apparmor="DENIED"' | grep gpu-doctor   # see what was
 snappy-debug                            # (snap) suggests interfaces for denials
 ```
 
-Publishing:
+Publishing from your own machine:
 
 ```sh
 snapcraft login
@@ -105,6 +105,13 @@ snapcraft upload --release=edge gpu-doctor_0.1.0_amd64.snap
 # after testing from edge:
 snapcraft release gpu-doctor <revision> stable
 ```
+
+Or let the Snap Store build it on every push, with no local snapcraft
+(https://snapcraft.io/docs/build-from-github): register the name, open the
+snap's **Builds** tab on snapcraft.io, connect GitHub, pick
+`snehanagmoti/gpu-doctor` and click **Start building**. Each push to `main`
+is built on Launchpad for every architecture in `platforms:` and released to
+`edge`; promote a tested revision to `stable` from the **Releases** tab.
 
 The first upload of a snap that plugs `hardware-observe` and friends may be
 held for manual review; requesting auto-connection of those interfaces is a
