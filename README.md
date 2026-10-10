@@ -17,10 +17,17 @@ to run them.
 Supported: Ubuntu 22.04 LTS and 24.04 LTS (and derivatives), Python 3.10+, no
 third-party runtime dependencies.
 
+![gpu-doctor diagnosing two broken machines](docs/demo.svg)
+
+<sub>The demo diagnoses two of the test suite's simulated machines through
+`--root`, so it can be re-recorded anywhere (`scripts/record-demo.py`). Try
+any broken setup yourself with `python3 scripts/make-demo-root.py --list`.</sub>
+
 ## Example
 
 After a kernel upgrade on a machine that builds the driver with DKMS, without
-the matching headers:
+the matching headers (output generated from the test suite's
+`dkms_missing_after_kernel_upgrade` scenario):
 
 ```text
 $ gpu-doctor
@@ -30,23 +37,43 @@ PASS  System information                   Ubuntu 24.04.1 LTS, kernel 6.8.0-47-g
 PASS  NVIDIA GPU present                   1 NVIDIA GPU: AD102 [GeForce RTX 4090] (0000:01:00.0)
 PASS  Driver package installed             nvidia-driver-550 550.120 (proprietary kernel modules)
 FAIL  Kernel module loaded                 The nvidia kernel module is not loaded
-      ...
-FAIL  Module built for running kernel      DKMS has not built the nvidia module for the running kernel 6.8.0-47-generic
-      DKMS has nvidia 550.120 built only for: 6.8.0-45-generic. This usually happens after a kernel upgrade
-      when the matching linux-headers package was missing or the build failed. Install the headers, rebuild,
-      and reboot.
+      Without the kernel module no program can use the GPU. If you have just installed or upgraded
+      the driver, reboot first. Otherwise the checks below point at the usual causes: nouveau
+      holding the GPU, no module built for the running kernel, or Secure Boot rejecting an unsigned
+      module. Loading it by hand shows the kernel's exact error.
+      Suggested commands (review before running):
+        $ sudo modprobe nvidia
+        $ sudo dmesg | grep -iE 'nvidia|nouveau'
+
+FAIL  Module built for running kernel      DKMS has not built the nvidia module for the running
+                                           kernel 6.8.0-47-generic
+      DKMS has nvidia 550.120 built only for: 6.8.0-45-generic. This usually happens after a kernel
+      upgrade when the matching linux-headers package was missing or the build failed. Install the
+      headers, rebuild, and reboot.
       Suggested commands (review before running):
         $ sudo apt install linux-headers-$(uname -r)
         $ sudo dkms autoinstall
         $ sudo reboot
 
 FAIL  Kernel headers installed             Kernel headers for 6.8.0-47-generic are not installed
-      ...
-PASS  No nouveau conflict                  nouveau is not loaded (blocked by /lib/modprobe.d/nvidia-graphics-drivers.conf)
+      DKMS compiles the nvidia module against the headers of each kernel. Without headers for the
+      running kernel it cannot build the module.
+      Suggested commands (review before running):
+        $ sudo apt install linux-headers-$(uname -r)
+        $ sudo dkms autoinstall
+
+PASS  No nouveau conflict                  nouveau is not loaded (blocked by
+                                           /lib/modprobe.d/nvidia-graphics-drivers.conf)
 PASS  Secure Boot and module signing       Secure Boot is disabled, so unsigned modules can load
-SKIP  Module and library versions match    Skipped: depends on 'Kernel module loaded', which did not pass
-FAIL  nvidia-smi works                     nvidia-smi failed: NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. M…
-PASS  CUDA toolkit compatible with driver  CUDA 12.4.1 is fully supported (needs driver >= 550.54.15)
+SKIP  Module and library versions match    Skipped: depends on 'Kernel module loaded', which did not
+                                           pass
+FAIL  nvidia-smi works                     nvidia-smi failed: NVIDIA-SMI has failed because it
+                                           couldn't communicate with the NVIDIA driver. Make sure
+                                           that the latest NVIDIA driver is installed and running.
+      The nvidia kernel module is not loaded; see the checks above for why.
+
+PASS  CUDA toolkit compatible with driver  CUDA 12.4.1 is fully supported (needs driver >=
+                                           550.54.15)
 SKIP  Docker GPU support                   Docker is not installed
 SKIP  Hybrid graphics (PRIME)              Not a hybrid-graphics system
 
@@ -83,8 +110,8 @@ sudo snap connect gpu-doctor:kernel-module-observe
 ```sh
 git clone https://github.com/snehanagmoti/gpu-doctor.git
 cd gpu-doctor
-python3 -m gpudoctor          # run without installing (from src/: PYTHONPATH=src)
-pip install .                  # or install it
+PYTHONPATH=src python3 -m gpudoctor   # run without installing
+pip install .                          # or install it
 ```
 
 ## Usage
