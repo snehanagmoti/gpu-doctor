@@ -31,7 +31,7 @@ jobs:
         run: |
           pip install build
           python3 -m build
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             build-area/*.deb
