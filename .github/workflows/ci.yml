@@ -68,7 +68,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            debhelper dh-python python3-all python3-setuptools python3-pytest \
+            build-essential debhelper dh-python python3-all python3-setuptools python3-pytest \
             devscripts lintian fakeroot
       - name: Build, run the tests inside the build, and lint
         run: ./scripts/build-deb.sh "$PWD/build-area"

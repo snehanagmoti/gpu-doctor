@@ -215,7 +215,7 @@ mypy                        # strict, on src/
 Build the Debian package and the snap:
 
 ```sh
-sudo apt install debhelper dh-python python3-all python3-setuptools python3-pytest lintian devscripts
+sudo apt install build-essential debhelper dh-python python3-all python3-setuptools python3-pytest lintian devscripts
 ./scripts/build-deb.sh      # builds ../gpu-doctor_*.deb and runs lintian
 snapcraft pack              # needs snapcraft and LXD or Multipass
 ```

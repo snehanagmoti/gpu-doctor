@@ -21,7 +21,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            debhelper dh-python python3-all python3-setuptools python3-pytest \
+            build-essential debhelper dh-python python3-all python3-setuptools python3-pytest \
             devscripts lintian fakeroot
           ./scripts/build-deb.sh "$PWD/build-area"
       - uses: snapcore/action-build@v1
