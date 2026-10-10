@@ -65,9 +65,10 @@ the `.deb` in clean LXD containers.
 1. Update `__version__` in `src/gpudoctor/__init__.py`, `version` in
    `snap/snapcraft.yaml`, `CHANGELOG.md`, the man page header and
    `debian/changelog` (`dch -v X.Y.Z-1`).
-2. Commit, then tag: `git tag -s vX.Y.Z -m "gpu-doctor X.Y.Z"` and push the tag.
-   The release workflow builds the `.deb`, snap and wheel and creates the
-   GitHub release.
+2. Commit and push, wait for CI to pass, then publish a release on GitHub
+   (Releases → Draft a new release, new tag `vX.Y.Z` on `main`, notes from
+   CHANGELOG.md). The release workflow builds the `.deb`, snap and wheel and
+   attaches them to it.
 3. Upload to the PPA (`./scripts/ppa-upload.sh 1 jammy noble`) and the Snap
    Store (`snapcraft upload --release=edge ...`).
 
