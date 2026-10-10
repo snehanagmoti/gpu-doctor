@@ -56,10 +56,24 @@ def render_text(
     width: int | None = None,
 ) -> str:
     style = _Style(colour)
-    width = width or min(shutil.get_terminal_size((100, 24)).columns, 100)
+    width = width or shutil.get_terminal_size((100, 24)).columns
     title_width = max((len(titles.get(r.check_id, r.check_id)) for r in results), default=10)
     indent = " " * 6
-    wrap = textwrap.TextWrapper(width=width, initial_indent=indent, subsequent_indent=indent)
+    # Explanations are prose: cap them at 100 columns even on wide terminals.
+    wrap = textwrap.TextWrapper(
+        width=min(width, 100), initial_indent=indent, subsequent_indent=indent
+    )
+    # Summaries wrap under their own column, so the status column stays clean.
+    # (TextWrapper's width includes the indent, so both indents are the column
+    # and the first line's indent is stripped again below.)
+    summary_column = 4 + 2 + title_width + 2
+    summary_wrap = textwrap.TextWrapper(
+        width=width,
+        initial_indent=" " * summary_column,
+        subsequent_indent=" " * summary_column,
+        break_on_hyphens=False,
+        break_long_words=False,  # never split a path or package name
+    )
 
     lines = [
         style(_BOLD, f"gpu-doctor {__version__}") + ": read-only NVIDIA driver diagnostics",
@@ -68,7 +82,10 @@ def render_text(
     for r in results:
         label = style(_ANSI[r.status], f"{r.status.name:<4}")
         title = titles.get(r.check_id, r.check_id)
-        lines.append(f"{label}  {title:<{title_width}}  {r.summary}")
+        summary = r.summary
+        if width >= summary_column + 30:
+            summary = "\n".join(summary_wrap.wrap(r.summary))[summary_column:]
+        lines.extend(f"{label}  {title:<{title_width}}  {summary}".split("\n"))
         show_details = verbose or r.status in (Status.WARN, Status.FAIL) or r.internal_error
         if show_details and r.explanation:
             lines.extend(wrap.wrap(r.explanation))

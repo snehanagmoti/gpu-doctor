@@ -208,3 +208,18 @@ def test_python_dash_m(tmp_path):
     )
     assert proc.returncode == 0
     assert proc.stdout.strip() == f"gpu-doctor {__version__}"
+
+
+def test_long_summaries_wrap_under_their_column():
+    titles = {"x": "Short"}
+    summary = "word " * 30
+    out = render_text([CheckResult("x", Status.PASS, summary.strip())], titles, width=60)
+    lines = [line for line in out.splitlines() if line.startswith(("PASS", " " * 13))]
+    assert lines[0].startswith("PASS  Short  word")
+    assert all(len(line) <= 60 for line in lines)
+    # Continuation lines use the full width, not just what is left of the first.
+    assert all(line.startswith(" " * 13 + "word") and len(line) > 50 for line in lines[1:-1])
+    assert " ".join(line.strip() for line in lines).endswith(summary.strip())
+    # Too narrow to wrap sensibly: leave the line alone rather than make a mess.
+    narrow = render_text([CheckResult("x", Status.PASS, summary.strip())], titles, width=30)
+    assert "PASS  Short  " + summary.strip() in narrow

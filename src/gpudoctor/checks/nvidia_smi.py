@@ -85,8 +85,6 @@ def run(probe: SystemProbe) -> CheckResult:
             evidence=evidence,
         )
     first_line = output.splitlines()[0] if output else f"exit status {result.returncode}"
-    if len(first_line) > 80:
-        first_line = first_line[:79].rstrip() + "…"
     explanation = "See the checks above for the most likely cause."
     fixes: tuple[str, ...] = ()
     for needle, text, known_fixes in _KNOWN_ERRORS:
