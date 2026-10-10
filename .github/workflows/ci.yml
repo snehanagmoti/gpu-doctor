@@ -50,7 +50,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install pytest pytest-cov
       - run: pytest --cov --cov-report=term-missing --cov-report=xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python }}
           path: coverage.xml
@@ -81,7 +81,7 @@ jobs:
           echo "exit status $rc"; test "$rc" -le 2
           python3 -c 'import json; d = json.load(open("out.json")); assert not any(c["internal_error"] for c in d["checks"])'
           gpu-doctor --color never || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: deb-${{ matrix.os }}
           path: |
@@ -107,7 +107,7 @@ jobs:
           rc=0; gpu-doctor --json > out.json || rc=$?
           echo "exit status $rc"; test "$rc" -le 2
           gpu-doctor --verbose --color never || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: snap
           path: ${{ steps.build.outputs.snap }}
