@@ -32,9 +32,6 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Import gpudoctor from src/ without installing it (needs pytest >= 7;
-# packaging builds and autopkgtest use the built/installed copy instead).
-pythonpath = ["src"]
 addopts = "-ra"
 
 [tool.coverage.run]
